@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>토스 앱으로 이동</title>
+  <script>
+    const to = new URLSearchParams(location.search).get('to');
+    if (to) location.href = to;
+  </script>
+</head>
+<body>
+  <p>토스 앱으로 이동 중...</p>
+</body>
+</html>

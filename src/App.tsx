@@ -21,7 +21,6 @@ function App() {
           padding: "24px",
         }}
       >
-        <p>안녕하세요</p>
         <Button
           as="a"
           variant="weak"

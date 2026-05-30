@@ -28,11 +28,11 @@ jobs:
       - name: Deploy
         id: deploy
         run: |
-          npx ait deploy --api-key ${{ secrets.AIT_API_KEY }} | tee /tmp/deploy_output.txt
-          DEPLOY_URL=$(cat /tmp/deploy_output.txt \
-            | sed 's/\x1b\[[0-9;]*[mGKH]//g' \
-            | grep -o 'intoss-private://[^[:space:]]*' \
-            | head -1)
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+          DEPLOY_URL=$(npx ait deploy \
+            --api-key ${{ secrets.AIT_API_KEY }} \
+            --scheme-only \
+            -m "[${{ github.ref_name }}] $COMMIT_MSG")
           echo "deploy_url=$DEPLOY_URL" >> $GITHUB_OUTPUT
 
       - name: Notify Discord (success)

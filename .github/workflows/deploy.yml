@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -19,6 +22,10 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Get commit info
+        id: commit
+        run: echo "msg=$(git log -1 --pretty=format:'%s')" >> $GITHUB_OUTPUT
+
       - name: Install dependencies
         run: npm ci
 
@@ -28,69 +35,74 @@ jobs:
       - name: Deploy
         id: deploy
         run: |
-          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
           DEPLOY_URL=$(npx ait deploy \
             --api-key ${{ secrets.AIT_API_KEY }} \
             --scheme-only \
-            -m "[${{ github.ref_name }}] $COMMIT_MSG")
-          echo "deploy_url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+            -m "[${{ github.ref_name }}] ${{ steps.commit.outputs.msg }}")
+          ENCODED_URL=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$DEPLOY_URL")
+          REDIRECT_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/?to=${ENCODED_URL}"
+          echo "redirect_url=${REDIRECT_URL}" >> $GITHUB_OUTPUT
+
+      - name: Deploy redirect page to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./redirect
+          keep_files: false
 
       - name: Notify Discord (success)
         if: success()
+        env:
+          COMMIT_MSG: ${{ steps.commit.outputs.msg }}
+          REDIRECT_URL: ${{ steps.deploy.outputs.redirect_url }}
         run: |
           curl -s -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
-            -d '{
-              "embeds": [{
-                "title": "✅ 배포 성공",
-                "color": 5763719,
-                "fields": [
-                  {
-                    "name": "앱 링크",
-                    "value": "`'"${{ steps.deploy.outputs.deploy_url }}"'`",
-                    "inline": false
-                  },
-                  {
-                    "name": "커밋",
-                    "value": "[`'"${GITHUB_SHA::7}"'`]('"${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"')",
-                    "inline": true
-                  },
-                  {
-                    "name": "배포자",
-                    "value": "${{ github.actor }}",
-                    "inline": true
-                  }
-                ],
-                "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"
-              }]
-            }'
+            -d "$(jq -n \
+              --arg commit_msg "$COMMIT_MSG" \
+              --arg redirect_url "$REDIRECT_URL" \
+              --arg sha "${GITHUB_SHA::7}" \
+              --arg sha_url "${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}" \
+              --arg actor "${{ github.actor }}" \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              '{
+                embeds: [{
+                  title: "✅ 배포 성공",
+                  color: 5763719,
+                  fields: [
+                    { name: "변경 내용", value: $commit_msg, inline: false },
+                    { name: "앱 열기", value: "[토스앱에서 열기](\($redirect_url))", inline: false },
+                    { name: "커밋", value: "[`\($sha)`](\($sha_url))", inline: true },
+                    { name: "배포자", value: $actor, inline: true }
+                  ],
+                  timestamp: $timestamp
+                }]
+              }')"
 
       - name: Notify Discord (failure)
         if: failure()
+        env:
+          COMMIT_MSG: ${{ steps.commit.outputs.msg }}
         run: |
           curl -s -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
-            -d '{
-              "embeds": [{
-                "title": "❌ 배포 실패",
-                "color": 15548997,
-                "fields": [
-                  {
-                    "name": "커밋",
-                    "value": "[`'"${{ github.sha }}"'`]('"${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"')",
-                    "inline": true
-                  },
-                  {
-                    "name": "배포자",
-                    "value": "${{ github.actor }}",
-                    "inline": true
-                  },
-                  {
-                    "name": "워크플로우",
-                    "value": "[로그 보기]('"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"')",
-                    "inline": true
-                  }
-                ],
-                "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"
-              }]
-            }'
+            -d "$(jq -n \
+              --arg commit_msg "${COMMIT_MSG:-알 수 없음}" \
+              --arg sha "${GITHUB_SHA::7}" \
+              --arg sha_url "${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}" \
+              --arg actor "${{ github.actor }}" \
+              --arg workflow_url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              '{
+                embeds: [{
+                  title: "❌ 배포 실패",
+                  color: 15548997,
+                  fields: [
+                    { name: "변경 내용", value: $commit_msg, inline: false },
+                    { name: "커밋", value: "[`\($sha)`](\($sha_url))", inline: true },
+                    { name: "배포자", value: $actor, inline: true },
+                    { name: "워크플로우", value: "[로그 보기](\($workflow_url))", inline: true }
+                  ],
+                  timestamp: $timestamp
+                }]
+              }')"

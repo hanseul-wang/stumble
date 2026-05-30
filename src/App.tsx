@@ -8,7 +8,7 @@ function App() {
         title={<Top.TitleParagraph size={22}>반가워요</Top.TitleParagraph>}
         subtitleBottom={
           <Top.SubtitleParagraph size={17}>
-            앱인토스 개발을 시작해 보세요. 테스트
+            앱인토스 개발을 시작해 보세요.
           </Top.SubtitleParagraph>
         }
       />

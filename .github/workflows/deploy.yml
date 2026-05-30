@@ -26,7 +26,14 @@ jobs:
         run: npm run build
 
       - name: Deploy
-        run: npx ait deploy --api-key ${{ secrets.AIT_API_KEY }}
+        id: deploy
+        run: |
+          npx ait deploy --api-key ${{ secrets.AIT_API_KEY }} | tee /tmp/deploy_output.txt
+          DEPLOY_URL=$(cat /tmp/deploy_output.txt \
+            | sed 's/\x1b\[[0-9;]*[mGKH]//g' \
+            | grep -o 'intoss-private://[^[:space:]]*' \
+            | head -1)
+          echo "deploy_url=$DEPLOY_URL" >> $GITHUB_OUTPUT
 
       - name: Notify Discord (success)
         if: success()
@@ -39,13 +46,13 @@ jobs:
                 "color": 5763719,
                 "fields": [
                   {
-                    "name": "앱",
-                    "value": "[stumble-taste 열기](https://toss.im/stumble-taste)",
-                    "inline": true
+                    "name": "앱 링크",
+                    "value": "`'"${{ steps.deploy.outputs.deploy_url }}"'`",
+                    "inline": false
                   },
                   {
                     "name": "커밋",
-                    "value": "[`'"${{ github.sha }}"'`]('"${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"')",
+                    "value": "[`'"${GITHUB_SHA::7}"'`]('"${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"')",
                     "inline": true
                   },
                   {

@@ -5,9 +5,6 @@ import { getResultIndex, QUESTIONS } from "./questions";
 import { getResult } from "./results";
 import "./App.css";
 
-// 검수 중에는 true — 통과 후 false로 변경
-const REVIEW_MODE = true;
-
 // 토스 네이티브 런타임(WebView) 안에서 실행 중인지 판별해요.
 // 일반 웹 브라우저면 false — graniteEvent·share 등 네이티브 브릿지는
 // 이 안에서만 호출해야 "ReactNativeWebView is not available" throw를 피해요.
@@ -265,7 +262,10 @@ function ResultPage() {
 
       <div className="result-cta">
         {isOwn ? (
-          REVIEW_MODE ? (
+          <div className="result-cta-row">
+            <button className="share-btn" onClick={handleShare}>
+              친구에게 공유하기
+            </button>
             <button
               className="start-btn"
               style={{ backgroundColor: result.color }}
@@ -273,20 +273,7 @@ function ResultPage() {
             >
               다시 해보기
             </button>
-          ) : (
-            <div className="result-cta-row">
-              <button className="share-btn" onClick={handleShare}>
-                친구에게 공유하기
-              </button>
-              <button
-                className="start-btn"
-                style={{ backgroundColor: result.color }}
-                onClick={handleRestart}
-              >
-                다시 해보기
-              </button>
-            </div>
-          )
+          </div>
         ) : (
           <button
             className="start-btn"

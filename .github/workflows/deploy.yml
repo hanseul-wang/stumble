@@ -38,7 +38,10 @@ jobs:
           DEPLOY_URL=$(npx ait deploy \
             --api-key ${{ secrets.AIT_API_KEY }} \
             --scheme-only \
-            -m "[${{ github.ref_name }}] ${{ steps.commit.outputs.msg }}")
+            -m "[${{ github.ref_name }}] ${{ steps.commit.outputs.msg }}" 2>&1) || {
+            echo "ait deploy failed with output: $DEPLOY_URL"
+            exit 1
+          }
           ENCODED_URL=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$DEPLOY_URL")
           REDIRECT_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/?to=${ENCODED_URL}"
           echo "redirect_url=${REDIRECT_URL}" >> $GITHUB_OUTPUT

@@ -3,6 +3,9 @@ import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } 
 import { TossAds } from "@apps-in-toss/web-framework";
 import "./App.css";
 
+// 검수 중에는 true — 통과 후 false로 변경
+const REVIEW_MODE = true;
+
 // ─── Data ──────────────────────────────────────────────────────────────
 
 const QUESTIONS = [
@@ -364,10 +367,7 @@ function ResultPage() {
 
       <div className="result-cta">
         {isOwn ? (
-          <div className="result-cta-row">
-            <button className="share-btn" onClick={handleShare}>
-              {copied ? "링크 복사됨!" : "친구에게 공유하기"}
-            </button>
+          REVIEW_MODE ? (
             <button
               className="start-btn"
               style={{ backgroundColor: result.color }}
@@ -375,7 +375,20 @@ function ResultPage() {
             >
               다시 해보기
             </button>
-          </div>
+          ) : (
+            <div className="result-cta-row">
+              <button className="share-btn" onClick={handleShare}>
+                {copied ? "링크 복사됨!" : "친구에게 공유하기"}
+              </button>
+              <button
+                className="start-btn"
+                style={{ backgroundColor: result.color }}
+                onClick={handleRestart}
+              >
+                다시 해보기
+              </button>
+            </div>
+          )
         ) : (
           <button
             className="start-btn"
@@ -387,12 +400,14 @@ function ResultPage() {
         )}
       </div>
 
-      <div
-        ref={bannerRef}
-        className={showBannerAd ? "banner-ad-container" : "banner-ad-placeholder"}
-      >
-        {!showBannerAd && <span className="banner-ad-placeholder-text">AD</span>}
-      </div>
+      {!REVIEW_MODE && (
+        <div
+          ref={bannerRef}
+          className={showBannerAd ? "banner-ad-container" : "banner-ad-placeholder"}
+        >
+          {!showBannerAd && <span className="banner-ad-placeholder-text">AD</span>}
+        </div>
+      )}
     </div>
   );
 }

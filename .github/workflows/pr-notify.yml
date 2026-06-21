@@ -1,0 +1,36 @@
+name: PR Notify
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Notify Discord
+        run: |
+          curl -s -X POST "${{ secrets.DISCORD_PR_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg title "${{ github.event.pull_request.title }}" \
+              --arg pr_url "${{ github.event.pull_request.html_url }}" \
+              --arg pr_number "#${{ github.event.pull_request.number }}" \
+              --arg author "${{ github.event.pull_request.user.login }}" \
+              --arg base "${{ github.event.pull_request.base.ref }}" \
+              --arg head "${{ github.event.pull_request.head.ref }}" \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              '{
+                embeds: [{
+                  title: "🔍 PR 열림",
+                  color: 5814783,
+                  fields: [
+                    { name: "제목", value: "[\($title)](\($pr_url))", inline: false },
+                    { name: "브랜치", value: "`\($head)` → `\($base)`", inline: false },
+                    { name: "PR", value: $pr_number, inline: true },
+                    { name: "작성자", value: $author, inline: true }
+                  ],
+                  timestamp: $timestamp
+                }]
+              }')"

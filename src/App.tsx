@@ -1,4 +1,4 @@
-import { graniteEvent, getTossShareLink, share, TossAds } from "@apps-in-toss/web-framework";
+import { getAppsInTossGlobals, graniteEvent, getTossShareLink, share, TossAds } from "@apps-in-toss/web-framework";
 import { useEffect, useRef, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from "react-router-dom";
 import "./App.css";
@@ -251,10 +251,24 @@ function ResultPage() {
   const isOwn = sessionStorage.getItem("isOwnResult") === "true";
 
   const handleShare = async () => {
-    const deepLink = `intoss://stumble-taste/result?t=${typeIndex}${name ? `&name=${encodeURIComponent(name)}` : ""}`;
-    const tossShareLink = await getTossShareLink(deepLink);
-    const shareText = `${name ? `${name}은 ` : ""}${result.subtitle}이에요. 나도 해볼래요?\n${tossShareLink}`;
-    await share({ message: shareText });
+    try {
+      const { deploymentId } = getAppsInTossGlobals();
+
+      // 정식 출시 전: intoss-private:// 스킴 사용 (deploymentId 필요)
+      // 정식 출시 후: intoss://stumble-taste/ 스킴 사용
+      const queryParams = encodeURIComponent(
+        JSON.stringify({ t: String(typeIndex), ...(name ? { name } : {}) })
+      );
+      const deepLink = deploymentId
+        ? `intoss-private://appsintoss/result?_deploymentId=${deploymentId}&queryParams=${queryParams}`
+        : `intoss://stumble-taste/result?t=${typeIndex}${name ? `&name=${encodeURIComponent(name)}` : ""}`;
+
+      const tossShareLink = await getTossShareLink(deepLink);
+      const shareText = `${name ? `${name}은 ` : ""}${result.subtitle}이에요. 나도 해볼래요?\n${tossShareLink}`;
+      await share({ message: shareText });
+    } catch (e) {
+      console.error("[share] failed:", e);
+    }
   };
 
   const handleRestart = () => {

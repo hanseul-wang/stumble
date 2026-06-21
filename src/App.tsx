@@ -1,6 +1,6 @@
+import { graniteEvent, getTossShareLink, share, TossAds } from "@apps-in-toss/web-framework";
 import { useEffect, useRef, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from "react-router-dom";
-import { TossAds } from "@apps-in-toss/web-framework";
 import "./App.css";
 
 // ─── Data ──────────────────────────────────────────────────────────────
@@ -192,29 +192,24 @@ function SurveyPage() {
     }
   };
 
-  const handleBack = () => {
-    if (currentQ === 0) {
-      navigate("/");
-    } else {
-      setCurrentQ(currentQ - 1);
-      setAnswers(answers.slice(0, -1));
-    }
-  };
+  useEffect(() => {
+    const unsubscribe = graniteEvent.addEventListener("backEvent", {
+      onEvent: () => {
+        if (currentQ === 0) {
+          navigate("/");
+        } else {
+          setCurrentQ((q) => q - 1);
+          setAnswers((a) => a.slice(0, -1));
+        }
+      },
+      onError: (e) => console.error(e),
+    });
+    return unsubscribe;
+  }, [currentQ, navigate]);
 
   return (
     <div className="survey">
       <div className="survey-top">
-        <button className="back-btn" onClick={handleBack} aria-label="뒤로">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M15 19l-7-7 7-7"
-              stroke="#ffffff"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
         <span className="q-counter">
           {currentQ + 1} / {total}
         </span>
@@ -248,7 +243,6 @@ const BANNER_AD_GROUP_ID = "ait-ad-test-banner-id";
 function ResultPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [copied, setCopied] = useState(false);
   const bannerRef = useRef<HTMLDivElement>(null);
 
   const typeIndex = Number(searchParams.get("t") ?? 3);
@@ -256,20 +250,11 @@ function ResultPage() {
   const result = RESULTS[typeIndex] ?? RESULTS[3];
   const isOwn = sessionStorage.getItem("isOwnResult") === "true";
 
-  const shareUrl = `intoss://stumble-taste/result?t=${typeIndex}${name ? `&name=${encodeURIComponent(name)}` : ""}`;
-
   const handleShare = async () => {
-    if (navigator.share) {
-      await navigator.share({
-        title: `${name ? `${name}의 ` : ""}문화 취향 유형 — ${result.title}`,
-        text: `${name ? `${name}은 ` : ""}${result.subtitle}이에요. 나도 해볼래요?`,
-        url: shareUrl,
-      });
-    } else {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+    const deepLink = `intoss://stumble-taste/result?t=${typeIndex}${name ? `&name=${encodeURIComponent(name)}` : ""}`;
+    const tossShareLink = await getTossShareLink(deepLink);
+    const shareText = `${name ? `${name}은 ` : ""}${result.subtitle}이에요. 나도 해볼래요?\n${tossShareLink}`;
+    await share({ message: shareText });
   };
 
   const handleRestart = () => {
@@ -353,7 +338,7 @@ function ResultPage() {
         {isOwn ? (
           <>
             <button className="share-btn" onClick={handleShare}>
-              {copied ? "링크 복사됨!" : "친구에게 공유하기"}
+              친구에게 공유하기
             </button>
             <button
               className="start-btn"

@@ -117,6 +117,7 @@ function getResultIndex(answers: boolean[]): number {
 function LandingPage() {
   const navigate = useNavigate();
   const [name, setName] = useState("");
+  const hasPreviousResult = localStorage.getItem("stumble_result_t") !== null;
 
   const handleStart = () => {
     const params = name.trim() ? `?name=${encodeURIComponent(name.trim())}` : "";
@@ -174,9 +175,11 @@ function LandingPage() {
         <button className="start-btn" onClick={handleStart}>
           시작해 볼게요
         </button>
-        <button className="already-btn" onClick={handleAlready}>
-          이미 해봤어요
-        </button>
+        {hasPreviousResult && (
+          <button className="already-btn" onClick={handleAlready}>
+            이미 해봤어요
+          </button>
+        )}
       </div>
     </div>
   );

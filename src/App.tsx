@@ -250,6 +250,7 @@ function ResultPage() {
   const [searchParams] = useSearchParams();
   const [copied, setCopied] = useState(false);
   const bannerRef = useRef<HTMLDivElement>(null);
+  const [showBannerAd, setShowBannerAd] = useState(false);
 
   const typeIndex = Number(searchParams.get("t") ?? 3);
   const name = searchParams.get("name") ?? "";
@@ -283,6 +284,7 @@ function ResultPage() {
     try {
       if (!TossAds.initialize.isSupported() || !TossAds.attachBanner.isSupported()) return;
 
+      setShowBannerAd(true);
       TossAds.initialize({
         callbacks: {
           onInitialized: () => {
@@ -295,7 +297,7 @@ function ResultPage() {
         },
       });
     } catch {
-      // 토스앱 외부 환경에서는 광고를 표시하지 않음
+      // 토스앱 외부 환경에서는 플레이스홀더 유지
     }
 
     return () => {
@@ -347,11 +349,9 @@ function ResultPage() {
         </div>
       </div>
 
-      <div ref={bannerRef} className="banner-ad-container" />
-
       <div className="result-cta">
         {isOwn ? (
-          <>
+          <div className="result-cta-row">
             <button className="share-btn" onClick={handleShare}>
               {copied ? "링크 복사됨!" : "친구에게 공유하기"}
             </button>
@@ -362,7 +362,7 @@ function ResultPage() {
             >
               다시 해보기
             </button>
-          </>
+          </div>
         ) : (
           <button
             className="start-btn"
@@ -372,6 +372,13 @@ function ResultPage() {
             나도 해볼게요
           </button>
         )}
+      </div>
+
+      <div
+        ref={bannerRef}
+        className={showBannerAd ? "banner-ad-container" : "banner-ad-placeholder"}
+      >
+        {!showBannerAd && <span className="banner-ad-placeholder-text">AD</span>}
       </div>
     </div>
   );

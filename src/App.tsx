@@ -1,5 +1,5 @@
-import { getAppsInTossGlobals, graniteEvent, getTossShareLink, share, TossAds } from "@apps-in-toss/web-framework";
-import { useEffect, useRef, useState } from "react";
+import { getAppsInTossGlobals, graniteEvent, getTossShareLink, share } from "@apps-in-toss/web-framework";
+import { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from "react-router-dom";
 import "./App.css";
 
@@ -257,13 +257,9 @@ function SurveyPage() {
   );
 }
 
-const BANNER_AD_GROUP_ID = "ait-ad-test-banner-id";
-
 function ResultPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const bannerRef = useRef<HTMLDivElement>(null);
-  const [showBannerAd, setShowBannerAd] = useState(false);
 
   const typeIndex = Number(searchParams.get("t") ?? 3);
   const name = searchParams.get("name") ?? "";
@@ -295,33 +291,6 @@ function ResultPage() {
     sessionStorage.removeItem("isOwnResult");
     navigate("/");
   };
-
-  useEffect(() => {
-    let attached: { destroy: () => void } | null = null;
-
-    try {
-      if (!TossAds.initialize.isSupported() || !TossAds.attachBanner.isSupported()) return;
-
-      setShowBannerAd(true);
-      TossAds.initialize({
-        callbacks: {
-          onInitialized: () => {
-            if (!bannerRef.current) return;
-            attached = TossAds.attachBanner(BANNER_AD_GROUP_ID, bannerRef.current, {
-              theme: "auto",
-              variant: "expanded",
-            });
-          },
-        },
-      });
-    } catch {
-      // 토스앱 외부 환경에서는 플레이스홀더 유지
-    }
-
-    return () => {
-      attached?.destroy();
-    };
-  }, []);
 
   return (
     <div className="result">
@@ -402,14 +371,6 @@ function ResultPage() {
         )}
       </div>
 
-      {!REVIEW_MODE && (
-        <div
-          ref={bannerRef}
-          className={showBannerAd ? "banner-ad-container" : "banner-ad-placeholder"}
-        >
-          {!showBannerAd && <span className="banner-ad-placeholder-text">AD</span>}
-        </div>
-      )}
     </div>
   );
 }

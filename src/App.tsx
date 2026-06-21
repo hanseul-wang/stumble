@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from "react-router-dom";
+import { TossAds } from "@apps-in-toss/web-framework";
 import "./App.css";
 
 // ─── Data ──────────────────────────────────────────────────────────────
@@ -242,10 +243,13 @@ function SurveyPage() {
   );
 }
 
+const BANNER_AD_GROUP_ID = "ait-ad-test-banner-id";
+
 function ResultPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [copied, setCopied] = useState(false);
+  const bannerRef = useRef<HTMLDivElement>(null);
 
   const typeIndex = Number(searchParams.get("t") ?? 3);
   const name = searchParams.get("name") ?? "";
@@ -272,6 +276,32 @@ function ResultPage() {
     sessionStorage.removeItem("isOwnResult");
     navigate("/");
   };
+
+  useEffect(() => {
+    let attached: { destroy: () => void } | null = null;
+
+    try {
+      if (!TossAds.initialize.isSupported() || !TossAds.attachBanner.isSupported()) return;
+
+      TossAds.initialize({
+        callbacks: {
+          onInitialized: () => {
+            if (!bannerRef.current) return;
+            attached = TossAds.attachBanner(BANNER_AD_GROUP_ID, bannerRef.current, {
+              theme: "auto",
+              variant: "expanded",
+            });
+          },
+        },
+      });
+    } catch {
+      // 토스앱 외부 환경에서는 광고를 표시하지 않음
+    }
+
+    return () => {
+      attached?.destroy();
+    };
+  }, []);
 
   return (
     <div className="result">
@@ -316,6 +346,8 @@ function ResultPage() {
           </div>
         </div>
       </div>
+
+      <div ref={bannerRef} className="banner-ad-container" />
 
       <div className="result-cta">
         {isOwn ? (

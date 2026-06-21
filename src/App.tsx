@@ -120,6 +120,17 @@ function LandingPage() {
     navigate(`/survey${params}`);
   };
 
+  const handleAlready = () => {
+    const saved = localStorage.getItem("stumble_result_t");
+    if (saved !== null) {
+      sessionStorage.setItem("isOwnResult", "true");
+      const nameParam = name.trim() ? `&name=${encodeURIComponent(name.trim())}` : "";
+      navigate(`/result?t=${saved}${nameParam}`);
+    } else {
+      handleStart();
+    }
+  };
+
   return (
     <div className="landing">
       <div className="landing-header">
@@ -160,7 +171,7 @@ function LandingPage() {
         <button className="start-btn" onClick={handleStart}>
           시작해 볼게요
         </button>
-        <button className="already-btn" onClick={handleStart}>
+        <button className="already-btn" onClick={handleAlready}>
           이미 해봤어요
         </button>
       </div>
@@ -186,9 +197,11 @@ function SurveyPage() {
     if (currentQ < total - 1) {
       setCurrentQ(currentQ + 1);
     } else {
+      const resultIndex = getResultIndex(next);
+      localStorage.setItem("stumble_result_t", String(resultIndex));
       sessionStorage.setItem("isOwnResult", "true");
       const nameParam = name ? `&name=${encodeURIComponent(name)}` : "";
-      navigate(`/result?t=${getResultIndex(next)}${nameParam}`);
+      navigate(`/result?t=${resultIndex}${nameParam}`);
     }
   };
 

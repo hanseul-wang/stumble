@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from "react-router-dom";
 import "./App.css";
 
 // ─── Data ──────────────────────────────────────────────────────────────
@@ -99,25 +100,25 @@ const RESULTS: ResultData[] = [
   },
 ];
 
-function getResult(answers: boolean[]): ResultData {
+function getResultIndex(answers: boolean[]): number {
   const aCount = answers.filter(Boolean).length;
-  if (aCount >= 8) return RESULTS[0];
-  if (aCount >= 6) return RESULTS[1];
-  if (aCount >= 4) return RESULTS[2];
-  return RESULTS[3];
+  if (aCount >= 8) return 0;
+  if (aCount >= 6) return 1;
+  if (aCount >= 4) return 2;
+  return 3;
 }
 
-// ─── Screens ───────────────────────────────────────────────────────────
+// ─── Pages ─────────────────────────────────────────────────────────────
 
-type Screen = "landing" | "survey" | "result";
+function LandingPage() {
+  const navigate = useNavigate();
+  const [name, setName] = useState("");
 
-function LandingScreen({
-  onStart,
-  onSkip,
-}: {
-  onStart: () => void;
-  onSkip: () => void;
-}) {
+  const handleStart = () => {
+    const params = name.trim() ? `?name=${encodeURIComponent(name.trim())}` : "";
+    navigate(`/survey${params}`);
+  };
+
   return (
     <div className="landing">
       <div className="landing-header">
@@ -146,10 +147,19 @@ function LandingScreen({
       </div>
 
       <div className="cta-area">
-        <button className="start-btn" onClick={onStart}>
+        <input
+          className="name-input"
+          type="text"
+          placeholder="이름을 입력해주세요"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleStart()}
+          maxLength={20}
+        />
+        <button className="start-btn" onClick={handleStart}>
           시작해 볼게요
         </button>
-        <button className="already-btn" onClick={onSkip}>
+        <button className="already-btn" onClick={handleStart}>
           이미 해봤어요
         </button>
       </div>
@@ -157,24 +167,43 @@ function LandingScreen({
   );
 }
 
-function SurveyScreen({
-  questionIndex,
-  total,
-  onAnswer,
-  onBack,
-}: {
-  questionIndex: number;
-  total: number;
-  onAnswer: (isA: boolean) => void;
-  onBack: () => void;
-}) {
-  const question = QUESTIONS[questionIndex];
-  const progress = (questionIndex / total) * 100;
+function SurveyPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const name = searchParams.get("name") ?? "";
+
+  const [currentQ, setCurrentQ] = useState(0);
+  const [answers, setAnswers] = useState<boolean[]>([]);
+
+  const total = QUESTIONS.length;
+  const question = QUESTIONS[currentQ];
+  const progress = (currentQ / total) * 100;
+
+  const handleAnswer = (isA: boolean) => {
+    const next = [...answers, isA];
+    setAnswers(next);
+    if (currentQ < total - 1) {
+      setCurrentQ(currentQ + 1);
+    } else {
+      sessionStorage.setItem("isOwnResult", "true");
+      const nameParam = name ? `&name=${encodeURIComponent(name)}` : "";
+      navigate(`/result?t=${getResultIndex(next)}${nameParam}`);
+    }
+  };
+
+  const handleBack = () => {
+    if (currentQ === 0) {
+      navigate("/");
+    } else {
+      setCurrentQ(currentQ - 1);
+      setAnswers(answers.slice(0, -1));
+    }
+  };
 
   return (
     <div className="survey">
       <div className="survey-top">
-        <button className="back-btn" onClick={onBack} aria-label="뒤로">
+        <button className="back-btn" onClick={handleBack} aria-label="뒤로">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <path
               d="M15 19l-7-7 7-7"
@@ -186,28 +215,25 @@ function SurveyScreen({
           </svg>
         </button>
         <span className="q-counter">
-          {questionIndex + 1} / {total}
+          {currentQ + 1} / {total}
         </span>
       </div>
 
       <div className="progress-bar-track">
-        <div
-          className="progress-bar-fill"
-          style={{ width: `${progress}%` }}
-        />
+        <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
       </div>
 
-      <div className="survey-body" key={questionIndex}>
-        <p className="q-label">Q{questionIndex + 1}</p>
+      <div className="survey-body" key={currentQ}>
+        <p className="q-label">Q{currentQ + 1}</p>
         <h2 className="q-text">{question.text}</h2>
       </div>
 
-      <div className="options-area" key={`opts-${questionIndex}`}>
-        <button className="option-card" onClick={() => onAnswer(true)}>
+      <div className="options-area" key={`opts-${currentQ}`}>
+        <button className="option-card" onClick={() => handleAnswer(true)}>
           <span className="option-badge">A</span>
           <span className="option-text">{question.a}</span>
         </button>
-        <button className="option-card" onClick={() => onAnswer(false)}>
+        <button className="option-card" onClick={() => handleAnswer(false)}>
           <span className="option-badge">B</span>
           <span className="option-text">{question.b}</span>
         </button>
@@ -216,13 +242,37 @@ function SurveyScreen({
   );
 }
 
-function ResultScreen({
-  result,
-  onRestart,
-}: {
-  result: ResultData;
-  onRestart: () => void;
-}) {
+function ResultPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [copied, setCopied] = useState(false);
+
+  const typeIndex = Number(searchParams.get("t") ?? 3);
+  const name = searchParams.get("name") ?? "";
+  const result = RESULTS[typeIndex] ?? RESULTS[3];
+  const isOwn = sessionStorage.getItem("isOwnResult") === "true";
+
+  const shareUrl = `intoss://stumble-taste/result?t=${typeIndex}${name ? `&name=${encodeURIComponent(name)}` : ""}`;
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      await navigator.share({
+        title: `${name ? `${name}의 ` : ""}문화 취향 유형 — ${result.title}`,
+        text: `${name ? `${name}은 ` : ""}${result.subtitle}이에요. 나도 해볼래요?`,
+        url: shareUrl,
+      });
+    } else {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleRestart = () => {
+    sessionStorage.removeItem("isOwnResult");
+    navigate("/");
+  };
+
   return (
     <div className="result">
       <div
@@ -235,7 +285,9 @@ function ResultScreen({
       <div className="result-content">
         <div className="result-top">
           <span className="brand-name">STUMBLE</span>
-          <p className="result-label">당신의 문화 취향 유형</p>
+          <p className="result-label">
+            {name ? `${name}의 문화 취향 유형` : "당신의 문화 취향 유형"}
+          </p>
         </div>
 
         <div className="result-card">
@@ -266,14 +318,28 @@ function ResultScreen({
       </div>
 
       <div className="result-cta">
-        <button
-          className="start-btn"
-          style={{ backgroundColor: result.color }}
-          onClick={onRestart}
-        >
-          다시 해보기
-        </button>
-        <p className="result-note">친구에게 공유해보세요</p>
+        {isOwn ? (
+          <>
+            <button className="share-btn" onClick={handleShare}>
+              {copied ? "링크 복사됨!" : "친구에게 공유하기"}
+            </button>
+            <button
+              className="start-btn"
+              style={{ backgroundColor: result.color }}
+              onClick={handleRestart}
+            >
+              다시 해보기
+            </button>
+          </>
+        ) : (
+          <button
+            className="start-btn"
+            style={{ backgroundColor: result.color }}
+            onClick={handleRestart}
+          >
+            나도 해볼게요
+          </button>
+        )}
       </div>
     </div>
   );
@@ -282,53 +348,14 @@ function ResultScreen({
 // ─── App ───────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>("landing");
-  const [currentQ, setCurrentQ] = useState(0);
-  const [answers, setAnswers] = useState<boolean[]>([]);
-
-  const handleAnswer = (isA: boolean) => {
-    const next = [...answers, isA];
-    setAnswers(next);
-    if (currentQ < QUESTIONS.length - 1) {
-      setCurrentQ(currentQ + 1);
-    } else {
-      setScreen("result");
-    }
-  };
-
-  const handleBack = () => {
-    if (currentQ === 0) {
-      setScreen("landing");
-      setAnswers([]);
-    } else {
-      setCurrentQ(currentQ - 1);
-      setAnswers(answers.slice(0, -1));
-    }
-  };
-
-  const handleRestart = () => {
-    setScreen("landing");
-    setCurrentQ(0);
-    setAnswers([]);
-  };
-
-  if (screen === "landing") {
-    return (
-      <LandingScreen
-        onStart={() => setScreen("survey")}
-        onSkip={() => setScreen("survey")}
-      />
-    );
-  }
-  if (screen === "survey") {
-    return (
-      <SurveyScreen
-        questionIndex={currentQ}
-        total={QUESTIONS.length}
-        onAnswer={handleAnswer}
-        onBack={handleBack}
-      />
-    );
-  }
-  return <ResultScreen result={getResult(answers)} onRestart={handleRestart} />;
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/survey" element={<SurveyPage />} />
+        <Route path="/result" element={<ResultPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }

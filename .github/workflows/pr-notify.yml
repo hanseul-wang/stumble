@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Notify Discord
         run: |
-          curl -s -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+          curl -s -X POST "${{ secrets.DISCORD_PR_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
             -d "$(jq -n \
               --arg title "${{ github.event.pull_request.title }}" \

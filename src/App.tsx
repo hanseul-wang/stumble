@@ -3,6 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from "react-router-dom";
 import "./App.css";
 
+// 검수 중에는 true — 통과 후 false로 변경
+const REVIEW_MODE = true;
+
 // ─── Data ──────────────────────────────────────────────────────────────
 
 const QUESTIONS = [
@@ -114,10 +117,22 @@ function getResultIndex(answers: boolean[]): number {
 function LandingPage() {
   const navigate = useNavigate();
   const [name, setName] = useState("");
+  const hasPreviousResult = localStorage.getItem("stumble_result_t") !== null;
 
   const handleStart = () => {
     const params = name.trim() ? `?name=${encodeURIComponent(name.trim())}` : "";
     navigate(`/survey${params}`);
+  };
+
+  const handleAlready = () => {
+    const saved = localStorage.getItem("stumble_result_t");
+    if (saved !== null) {
+      sessionStorage.setItem("isOwnResult", "true");
+      const nameParam = name.trim() ? `&name=${encodeURIComponent(name.trim())}` : "";
+      navigate(`/result?t=${saved}${nameParam}`);
+    } else {
+      handleStart();
+    }
   };
 
   return (
@@ -160,9 +175,11 @@ function LandingPage() {
         <button className="start-btn" onClick={handleStart}>
           시작해 볼게요
         </button>
-        <button className="already-btn" onClick={handleStart}>
-          이미 해봤어요
-        </button>
+        {hasPreviousResult && (
+          <button className="already-btn" onClick={handleAlready}>
+            이미 해봤어요
+          </button>
+        )}
       </div>
     </div>
   );
@@ -186,9 +203,11 @@ function SurveyPage() {
     if (currentQ < total - 1) {
       setCurrentQ(currentQ + 1);
     } else {
+      const resultIndex = getResultIndex(next);
+      localStorage.setItem("stumble_result_t", String(resultIndex));
       sessionStorage.setItem("isOwnResult", "true");
       const nameParam = name ? `&name=${encodeURIComponent(name)}` : "";
-      navigate(`/result?t=${getResultIndex(next)}${nameParam}`);
+      navigate(`/result?t=${resultIndex}${nameParam}`);
     }
   };
 
@@ -350,10 +369,7 @@ function ResultPage() {
 
       <div className="result-cta">
         {isOwn ? (
-          <div className="result-cta-row">
-            <button className="share-btn" onClick={handleShare}>
-              친구에게 공유하기
-            </button>
+          REVIEW_MODE ? (
             <button
               className="start-btn"
               style={{ backgroundColor: result.color }}
@@ -361,7 +377,20 @@ function ResultPage() {
             >
               다시 해보기
             </button>
-          </div>
+          ) : (
+            <div className="result-cta-row">
+              <button className="share-btn" onClick={handleShare}>
+                친구에게 공유하기
+              </button>
+              <button
+                className="start-btn"
+                style={{ backgroundColor: result.color }}
+                onClick={handleRestart}
+              >
+                다시 해보기
+              </button>
+            </div>
+          )
         ) : (
           <button
             className="start-btn"
@@ -373,12 +402,14 @@ function ResultPage() {
         )}
       </div>
 
-      <div
-        ref={bannerRef}
-        className={showBannerAd ? "banner-ad-container" : "banner-ad-placeholder"}
-      >
-        {!showBannerAd && <span className="banner-ad-placeholder-text">AD</span>}
-      </div>
+      {!REVIEW_MODE && (
+        <div
+          ref={bannerRef}
+          className={showBannerAd ? "banner-ad-container" : "banner-ad-placeholder"}
+        >
+          {!showBannerAd && <span className="banner-ad-placeholder-text">AD</span>}
+        </div>
+      )}
     </div>
   );
 }
